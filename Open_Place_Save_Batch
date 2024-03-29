@@ -1,0 +1,96 @@
+// Opens image1 from folder1, then places image2 from folder2 on top as smart object, then saves it as a PSD. It runs in a loop till all the images from folder1 and folder2 are combined.
+// NOTE Images in OPEN and PLACE folders will get DELETED after processing, so make sure they're copies and not the original files.
+// Define the folder paths where your images are stored
+var openFolderPath = "C:\\Users\\username\\Desktop\\foldername\\Test\\"; // Specify the folder where to open images
+var placeFolderPath = "C:\\Users\\username\\Desktop\\foldername\\Test\\"; // Specify the folder where to grab images to place
+var saveFolderPath = "C:\\Users\\username\\Desktop\\foldername\\Test\\"; // Specify the folder where you want to save the PSD files
+
+// Function to open and place an image
+function openAndPlaceImage(openImageFile, placeImageFile) {
+    try {
+        // Open the image file from the open folder
+        var openDoc = app.open(openImageFile);
+
+        // Place the image file from the place folder
+        var placedLayer = app.activeDocument.artLayers.add();
+        placedLayer.name = "Placed Image";
+        app.activeDocument.activeLayer = placedLayer;
+
+        // Place the image as a smart object
+        var idPlaceCmd = stringIDToTypeID("placeEvent");
+        var desc = new ActionDescriptor();
+        desc.putPath(charIDToTypeID("null"), new File(placeImageFile));
+        desc.putEnumerated(charIDToTypeID("FTcs"), charIDToTypeID("QCSt"), charIDToTypeID("Qcsa"));
+        desc.putUnitDouble(charIDToTypeID("Wdth"), charIDToTypeID("#Prc"), 100.0);
+        desc.putUnitDouble(charIDToTypeID("Hght"), charIDToTypeID("#Prc"), 100.0);
+        executeAction(idPlaceCmd, desc, DialogModes.NO);
+
+        // Save the document as a PSD file to the save folder
+        var saveFile = new File(saveFolderPath + openDoc.name);
+        var psdOptions = new PhotoshopSaveOptions();
+        psdOptions.embedColorProfile = true;
+        psdOptions.alphaChannels = true;
+        psdOptions.layers = true;
+        openDoc.saveAs(saveFile, psdOptions);
+
+        // Close the open document without saving changes
+        openDoc.close(SaveOptions.DONOTSAVECHANGES);
+
+        // Delete the placed image file from the place folder
+        var placeImageFileRef = new File(placeImageFile);
+        placeImageFileRef.remove();
+	// Delete the opened image file from the open folder
+	var openImageFileRef = new File(openImageFile);
+	openImageFileRef.remove();
+        
+        return true; // Images were successfully opened, placed, and saved
+    } catch (e) {
+        alert("Error opening, placing, or saving the images. " + e);
+        return false; // Error occurred while opening, placing, or saving the images
+    }
+}
+
+// Get a reference to the open folder
+var openFolder = new Folder(openFolderPath);
+
+// Get a reference to the place folder
+var placeFolder = new Folder(placeFolderPath);
+
+// Check if the open folder exists
+if (openFolder.exists) {
+    // Check if the place folder exists
+    if (placeFolder.exists) {
+        // Keep running until there are no more files in the open folder
+        while (true) {
+            // Get an array of all files in the open folder
+            var openFiles = openFolder.getFiles();
+
+            // Get an array of all files in the place folder
+            var placeFiles = placeFolder.getFiles();
+
+            // Check if there are any files in the open folder
+            if (openFiles.length > 0) {
+                // Check if there are any files in the place folder
+                if (placeFiles.length > 0) {
+                    // Open, place, and save the first images found in the folders
+                    var openImageFile = openFiles[0];
+                    var placeImageFile = placeFiles[0];
+                    var success = openAndPlaceImage(openImageFile, placeImageFile);
+                    if (!success) {
+                        break; // Exit the loop if an error occurs
+                    }
+                } else {
+                    alert("Finished processing!");
+                    break; // Exit the loop if no more files are found in the place folder
+                }
+            } else {
+                alert("Finished processing!");
+                break; // Exit the loop if no more files are found in the open folder
+            }
+        }
+    } else {
+        alert("Place folder does not exist.");
+    }
+} else {
+    alert("Open folder does not exist.");
+}
